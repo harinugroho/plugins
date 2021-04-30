@@ -1,7 +1,3 @@
-// Copyright 2013 The Flutter Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-
 package io.flutter.plugins.androidintent;
 
 import android.content.ComponentName;
@@ -105,6 +101,8 @@ public final class MethodCallHandlerImpl implements MethodCallHandler {
       result.success(null);
     } else if ("canResolveActivity".equalsIgnoreCase(call.method)) {
       result.success(sender.canResolveActivity(intent));
+    } else if ("shareFiles".equalsIgnoreCase(call.method)) {
+      result.success(sender.shareFiles(intent));
     } else {
       result.notImplemented();
     }
