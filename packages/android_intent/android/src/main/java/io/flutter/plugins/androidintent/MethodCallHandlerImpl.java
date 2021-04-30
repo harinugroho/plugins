@@ -14,8 +14,11 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Forwards incoming {@link MethodCall}s to {@link IntentSender#send}. */
@@ -73,6 +76,8 @@ public final class MethodCallHandlerImpl implements MethodCallHandler {
    */
   @Override
   public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
+    List<String> paths = call.argument("paths");
+    List<String> mimeTypes = call.argument("mimeTypes");
     String action = convertAction((String) call.argument("action"));
     Integer flags = call.argument("flags");
     String category = call.argument("category");
@@ -102,7 +107,13 @@ public final class MethodCallHandlerImpl implements MethodCallHandler {
     } else if ("canResolveActivity".equalsIgnoreCase(call.method)) {
       result.success(sender.canResolveActivity(intent));
     } else if ("shareFiles".equalsIgnoreCase(call.method)) {
-      result.success(sender.shareFiles(intent));
+      try {
+        sender.shareFiles(intent, paths, mimeTypes);
+        result.success(true);
+      } catch (IOException e) {
+        result.success(false);
+        e.printStackTrace();
+      }
     } else {
       result.notImplemented();
     }
