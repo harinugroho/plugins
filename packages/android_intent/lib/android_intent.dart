@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:meta/meta.dart';
 import 'package:platform/platform.dart';
+import 'package:mime/mime.dart' show lookupMimeType;
 
 const String _kChannelName = 'plugins.flutter.io/android_intent';
 
@@ -17,6 +18,7 @@ const String _kChannelName = 'plugins.flutter.io/android_intent';
 /// for more information on how to use Intents.
 class AndroidIntent {
   /// Builds an Android intent with the following parameters
+  /// [paths] file paths.
   /// [action] refers to the action parameter of the intent.
   /// [flags] is the list of int that will be converted to native flags.
   /// [category] refers to the category of the intent, can be null.
@@ -29,6 +31,7 @@ class AndroidIntent {
   /// If not null, then [package] but also be provided.
   /// [type] refers to the type of the intent, can be null.
   const AndroidIntent({
+    this.paths,
     this.action,
     this.flags,
     this.category,
@@ -49,6 +52,7 @@ class AndroidIntent {
   AndroidIntent.private({
     required Platform platform,
     required MethodChannel channel,
+    this.paths,
     this.action,
     this.flags,
     this.category,
@@ -61,6 +65,8 @@ class AndroidIntent {
             'action or component (or both) must be specified'),
         _channel = channel,
         _platform = platform;
+
+  final List<String>? paths;
 
   /// This is the general verb that the intent should attempt to do. This
   /// includes constants like `ACTION_VIEW`.
@@ -138,6 +144,17 @@ class AndroidIntent {
     await _channel.invokeMethod<void>('launch', _buildArguments());
   }
 
+  /// Launch the intent.
+  ///
+  /// This works only on Android platforms.
+  Future<void> shareFiles() async {
+    if (!_platform.isAndroid) {
+      return;
+    }
+
+    await _channel.invokeMethod<void>('shareFiles', _buildArguments());
+  }
+
   /// Check whether the intent can be resolved to an activity.
   ///
   /// This works only on Android platforms.
@@ -156,6 +173,8 @@ class AndroidIntent {
   /// Constructs the map of arguments which is passed to the plugin.
   Map<String, dynamic> _buildArguments() {
     return {
+      if (paths != null && paths.isEmpty) 'paths': paths,
+      if (paths != null && paths.isEmpty) 'mimeTypes': paths?.map((String path) => _mimeTypeForPath(path)).toList(),
       if (action != null) 'action': action,
       if (flags != null) 'flags': convertFlags(flags!),
       if (category != null) 'category': category,
@@ -167,5 +186,10 @@ class AndroidIntent {
       },
       if (type != null) 'type': type,
     };
+  }
+
+  static String _mimeTypeForPath(String path) {
+    assert(path != null);
+    return lookupMimeType(path) ?? 'application/octet-stream';
   }
 }
