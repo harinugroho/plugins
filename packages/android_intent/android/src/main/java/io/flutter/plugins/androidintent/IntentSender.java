@@ -1,7 +1,3 @@
-// Copyright 2013 The Flutter Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-
 package io.flutter.plugins.androidintent;
 
 import android.app.Activity;
@@ -61,6 +57,52 @@ public final class IntentSender {
       intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
       applicationContext.startActivity(intent);
     }
+  }
+
+  void shareFiles(List<String> paths, List<String> mimeTypes, String text, String subject)
+          throws IOException {
+    if (paths == null || paths.isEmpty()) {
+      throw new IllegalArgumentException("Non-empty path expected");
+    }
+
+    clearExternalShareFolder();
+    ArrayList<Uri> fileUris = getUrisForPaths(paths);
+
+    Intent shareIntent = new Intent();
+    if (fileUris.isEmpty()) {
+      share(text, subject);
+      return;
+    } else if (fileUris.size() == 1) {
+      shareIntent.setAction(Intent.ACTION_SEND);
+      shareIntent.putExtra(Intent.EXTRA_STREAM, fileUris.get(0));
+      shareIntent.setType(
+              !mimeTypes.isEmpty() && mimeTypes.get(0) != null ? mimeTypes.get(0) : "*/*");
+    } else {
+      shareIntent.setAction(Intent.ACTION_SEND_MULTIPLE);
+      shareIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, fileUris);
+      shareIntent.setType(reduceMimeTypes(mimeTypes));
+    }
+    if (text != null) shareIntent.putExtra(Intent.EXTRA_TEXT, text);
+    if (subject != null) shareIntent.putExtra(Intent.EXTRA_SUBJECT, subject);
+    shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+    Intent chooserIntent = Intent.createChooser(shareIntent, null /* dialog title optional */);
+
+    List<ResolveInfo> resInfoList =
+            getContext()
+                    .getPackageManager()
+                    .queryIntentActivities(chooserIntent, PackageManager.MATCH_DEFAULT_ONLY);
+    for (ResolveInfo resolveInfo : resInfoList) {
+      String packageName = resolveInfo.activityInfo.packageName;
+      for (Uri fileUri : fileUris) {
+        getContext()
+                .grantUriPermission(
+                        packageName,
+                        fileUri,
+                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+      }
+    }
+
+    startActivity(chooserIntent);
   }
 
   /**
